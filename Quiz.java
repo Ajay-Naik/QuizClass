@@ -24,6 +24,10 @@ public class Quiz {
         this.createdTime = System.currentTimeMillis();
     }
 
+    public int getQuizId() {
+        return quizId;
+    }
+
     public void addQuestion(Question q) {
         questions.add(q);
         answerKey.put(questions.size(), q.getCorrectAnswer());
