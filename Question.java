@@ -14,4 +14,9 @@ public abstract class Question {
     public abstract boolean validate(String answer);
     public abstract String getCorrectAnswer();
     public abstract void displayQuestion();
+    
+    public int getQuestionId() {
+        return questionId;
+    }
 }
+
