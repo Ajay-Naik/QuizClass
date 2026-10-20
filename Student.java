@@ -44,22 +44,23 @@ public class Student {
     }
 
     /**
-     * Answers a question (1-based number) in the quiz that was joined. Rejects
-     * answers the question considers invalid.
+     * Answers a question, identified by its questionId, in the quiz that was
+     * joined.
+     * Rejects unknown question ids and answers the question considers invalid.
      */
-    public void answerQuestion(int qNum, String answer) {
+    public void answerQuestion(int questionId, String answer) {
         if (currentQuiz == null) {
             throw new IllegalStateException("Join a quiz first.");
         }
-        if (qNum < 1 || qNum > currentQuiz.getQuestionCount()) {
-            throw new IllegalArgumentException("Question " + qNum + " does not exist.");
+        Question question = findQuestion(questionId);
+        if (question == null) {
+            throw new IllegalArgumentException("Question " + questionId + " does not exist.");
         }
-        Question question = currentQuiz.getQuestions().get(qNum - 1);
         if (!question.validate(answer)) {
             throw new IllegalArgumentException("Invalid answer '" + answer
-                    + "' for question " + qNum + ". Please choose one of the listed options.");
+                    + "' for question " + questionId + ". Please choose one of the listed options.");
         }
-        currentResponse.submitAnswer(qNum, answer);
+        currentResponse.submitAnswer(questionId, answer);
     }
 
     /**
@@ -98,6 +99,15 @@ public class Student {
 
     public List<StudentResponse> getAllResponses() {
         return new ArrayList<>(responses);
+    }
+
+    private Question findQuestion(int questionId) {
+        for (Question q : currentQuiz.getQuestions()) {
+            if (q.getQuestionId() == questionId) {
+                return q;
+            }
+        }
+        return null;
     }
 
     private StudentResponse findResponseForQuiz(int quizId) {
