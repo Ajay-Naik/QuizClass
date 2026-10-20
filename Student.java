@@ -1,3 +1,4 @@
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -54,8 +55,8 @@ public class Student {
     }
 
     /**
-     * Grades and stores the current response. Also called by the timer on
-     * auto-submit.
+     * Grades the current response, saves it to a file and stores it. Also called by
+     * the timer on auto-submit.
      */
     public StudentResponse submitQuiz() {
         if (currentQuiz == null) {
@@ -64,6 +65,11 @@ public class Student {
         currentResponse.calculateScore(currentQuiz);
         StudentResponse submitted = currentResponse;
         responses.add(submitted);
+        try {
+            submitted.saveToFile(currentQuiz.getClassCode());
+        } catch (IOException e) {
+            System.out.println("Warning: could not save response file: " + e.getMessage());
+        }
         currentQuiz = null;
         currentResponse = null;
         return submitted;
