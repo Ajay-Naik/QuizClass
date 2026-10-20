@@ -29,9 +29,13 @@ public class Quiz {
     }
 
     public void addQuestion(Question q) {
-        questions.add(q);
-        answerKey.put(questions.size(), q.getCorrectAnswer());
+    if (answerKey.containsKey(q.getQuestionId())) {
+        throw new IllegalArgumentException(
+                "Question ID " + q.getQuestionId() + " already exists in this quiz.");
     }
+    questions.add(q);
+    answerKey.put(q.getQuestionId(), q.getCorrectAnswer());
+}
 
     public void startQuiz() {
         isActive = true;
