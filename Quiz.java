@@ -13,6 +13,8 @@ public class Quiz {
     private boolean isActive;
     private long createdTime;
 
+    private Timer timer; 
+
     public Quiz(int quizId, String classCode, String title, int duration) {
         this.quizId = quizId;
         this.classCode = classCode;
@@ -38,11 +40,23 @@ public class Quiz {
 }
 
     public void startQuiz() {
-        isActive = true;
+    if (isActive) {
+        throw new IllegalStateException("Quiz " + classCode + " is already running.");
     }
+    timer = new Timer();
+    timer.startTimer(duration);
+    isActive = true;
+    }   
 
     public void endQuiz() {
-        isActive = false;
+    if (timer != null) {
+        timer.stopTimer();
+    }
+    isActive = false;
+    }
+    
+    public boolean isOpen() {
+        return isActive && timer != null && !timer.isTimeUp();
     }
 
     public int getQuestionCount() {
