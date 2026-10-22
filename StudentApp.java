@@ -23,15 +23,18 @@ public class StudentApp {
         Scanner in = new Scanner(System.in);
 
         String classCode = ask(in, "Enter class code: ");
+        
+        if (manager.getQuizByCode(classCode) == null) {
+        System.out.println("Invalid class code");
+        return;
+        }
+
         int studentId = askInt(in, "Enter student ID: ");
         String name = ask(in, "Enter your name: ");
 
         Student student = new Student(studentId, name);
         Quiz joined = student.joinQuiz(classCode, manager);
-        if (joined == null) {
-            System.out.println("Invalid class code");
-            return;
-        }
+       
         classCode = classCode.trim();
         System.out.println();
         System.out.println("Joined: " + joined.getTitle());
