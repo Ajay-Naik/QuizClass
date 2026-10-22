@@ -1,119 +1,93 @@
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * A student who joins quizzes by class code, answers questions and submits.
+ * A student who joins quizzes by class code, answers questions by questionId
+ * and submits.
  */
 public class Student {
     private int studentId;
     private String studentName;
-    private String email;
-    private List<StudentResponse> responses;
+    private Map<String, StudentResponse> responses; // keyed by class code
+    private Map<String, Quiz> joinedQuizzes; // quizzes joined, keyed by class code
 
-    private QuizManager quizManager; // used to look up quizzes by code
-    private Quiz currentQuiz; // quiz currently being taken
-    private StudentResponse currentResponse;
-
-    public Student(int studentId, String studentName, String email, QuizManager quizManager) {
+    public Student(int studentId, String studentName) {
         this.studentId = studentId;
         this.studentName = studentName;
-        this.email = email;
-        this.quizManager = quizManager;
-        this.responses = new ArrayList<>();
+        this.responses = new HashMap<>();
+        this.joinedQuizzes = new HashMap<>();
     }
 
-    /**
-     * Joins a quiz using its class code. Throws
-     * IllegalArgumentException/IllegalStateException on bad input.
-     */
-    public Quiz joinQuiz(String classCode) {
-        if (classCode == null || classCode.trim().isEmpty()) {
-            throw new IllegalArgumentException("Class code is required.");
+    /** Looks the quiz up by class code. Returns null if there is no such quiz. */
+    public Quiz joinQuiz(String classCode, QuizManager manager) {
+        if (classCode == null) {
+            return null;
         }
-        Quiz quiz = quizManager.getQuizByCode(classCode.trim());
+        String code = classCode.trim();
+        Quiz quiz = manager.getQuizByCode(code);
         if (quiz == null) {
-            throw new IllegalArgumentException("Invalid class code: " + classCode);
+            return null;
         }
-        if (findResponseForQuiz(quiz.getQuizId()) != null) {
-            throw new IllegalStateException("You have already submitted this quiz.");
+        // TODO: timer check - refuse to join if the quiz is not open (depends on Timer
+        // wiring).
+        joinedQuizzes.put(code, quiz);
+        if (!responses.containsKey(code)) { // joining again keeps the existing response
+            responses.put(code, new StudentResponse(studentId, studentName, code));
         }
-        currentQuiz = quiz;
-        currentResponse = new StudentResponse(studentId, studentName, quiz.getQuizId());
         return quiz;
     }
 
     /**
-     * Answers a question, identified by its questionId, in the quiz that was
-     * joined.
-     * Rejects unknown question ids and answers the question considers invalid.
+     * Stores the answer letter for a questionId. Throws if the answer cannot be
+     * accepted.
      */
-    public void answerQuestion(int questionId, String answer) {
-        if (currentQuiz == null) {
-            throw new IllegalStateException("Join a quiz first.");
+    public void answerQuestion(String classCode, int questionId, String letter) {
+        StudentResponse response = responses.get(classCode);
+        if (response == null) {
+            throw new IllegalStateException("You have not joined quiz " + classCode + ".");
         }
-        Question question = findQuestion(questionId);
+        // TODO: timer check - reject answers if the quiz is closed (time up).
+        Question question = findQuestion(joinedQuizzes.get(classCode), questionId);
         if (question == null) {
             throw new IllegalArgumentException("Question " + questionId + " does not exist.");
         }
-        if (!question.validate(answer)) {
-            throw new IllegalArgumentException("Invalid answer '" + answer
+        if (!question.validate(letter)) {
+            throw new IllegalArgumentException("Invalid answer '" + letter
                     + "' for question " + questionId + ". Please choose one of the listed options.");
         }
-        currentResponse.submitAnswer(questionId, answer);
+        response.submitAnswer(questionId, letter);
+    }
+
+    /** Grades the response, marks it submitted and returns it. */
+    public StudentResponse submitQuiz(String classCode) {
+        StudentResponse response = responses.get(classCode);
+        if (response == null) {
+            throw new IllegalStateException("You have not joined quiz " + classCode + ".");
+        }
+        if (response.isSubmitted()) {
+            throw new IllegalStateException("Already submitted.");
+        }
+        response.calculateScore(joinedQuizzes.get(classCode));
+        response.markSubmitted();
+        return response;
     }
 
     /**
-     * Grades the current response, saves it to a file and stores it. Also called by
-     * the timer on auto-submit.
-     */
-    public StudentResponse submitQuiz() {
-        if (currentQuiz == null) {
-            throw new IllegalStateException("Join a quiz first.");
-        }
-        currentResponse.calculateScore(currentQuiz);
-        StudentResponse submitted = currentResponse;
-        responses.add(submitted);
-        try {
-            submitted.saveToFile(currentQuiz.getClassCode());
-        } catch (IOException e) {
-            System.out.println("Warning: could not save response file: " + e.getMessage());
-        }
-        currentQuiz = null;
-        currentResponse = null;
-        return submitted;
-    }
-
-    /**
-     * Returns the number of correct answers for the quiz with this code, or -1 if
-     * not taken.
+     * Returns the percentage for this quiz, or -1 if the quiz has not been
+     * submitted.
      */
     public int viewScore(String classCode) {
-        Quiz quiz = quizManager.getQuizByCode(classCode);
-        if (quiz == null) {
+        StudentResponse response = responses.get(classCode);
+        if (response == null || !response.isSubmitted()) {
             return -1;
         }
-        StudentResponse r = findResponseForQuiz(quiz.getQuizId());
-        return (r == null) ? -1 : r.getScore();
+        return response.getPercentage();
     }
 
-    public List<StudentResponse> getAllResponses() {
-        return new ArrayList<>(responses);
-    }
-
-    private Question findQuestion(int questionId) {
-        for (Question q : currentQuiz.getQuestions()) {
+    private Question findQuestion(Quiz quiz, int questionId) {
+        for (Question q : quiz.getQuestions()) {
             if (q.getQuestionId() == questionId) {
                 return q;
-            }
-        }
-        return null;
-    }
-
-    private StudentResponse findResponseForQuiz(int quizId) {
-        for (StudentResponse r : responses) {
-            if (r.getQuizId() == quizId) {
-                return r;
             }
         }
         return null;
@@ -125,9 +99,5 @@ public class Student {
 
     public String getStudentName() {
         return studentName;
-    }
-
-    public String getEmail() {
-        return email;
     }
 }

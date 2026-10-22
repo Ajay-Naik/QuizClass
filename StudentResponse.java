@@ -10,72 +10,71 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * Stores one student's answers for one quiz, plus the graded result.
- * Can be saved to / loaded from a text file
- * (responses/response_<classCode>_<studentId>.txt).
+ * One student's answers for one quiz (identified by class code).
+ * Answers are single letters, keyed by questionId.
  */
 public class StudentResponse {
-    private static final String RESPONSE_FOLDER = "responses";
-
     private int studentId;
     private String studentName;
-    private int quizId;
-    private Map<Integer, String> answers; // Q1 -> "D", Q2 -> "B"
-    private long submittedTime;
-    private int correctCount;
-    private int totalQuestions;
+    private String classCode;
+    private Map<Integer, String> answers; // questionId -> letter, e.g. 1 -> "D"
     private int percentage;
+    private boolean submitted;
+    private long submittedTime;
 
-    public StudentResponse(int studentId, String studentName, int quizId) {
+    private static final String RESPONSE_FOLDER = "responses";
+
+    public StudentResponse(int studentId, String studentName, String classCode) {
         this.studentId = studentId;
         this.studentName = studentName;
-        this.quizId = quizId;
+        this.classCode = classCode;
         this.answers = new HashMap<>();
     }
 
-    /** Records (or overwrites) the answer for a question number. */
-    public void submitAnswer(int questionNum, String answer) {
-        if (questionNum <= 0) {
-            throw new IllegalArgumentException("Invalid question number: " + questionNum);
+    /**
+     * Stores (or overwrites) the answer for a questionId. Not allowed after
+     * submission.
+     */
+    public void submitAnswer(int questionId, String letter) {
+        if (submitted) {
+            throw new IllegalStateException("Already submitted.");
         }
-        if (answer == null || answer.trim().isEmpty()) {
+        if (letter == null || letter.trim().isEmpty()) {
             throw new IllegalArgumentException("Answer cannot be empty.");
         }
-        answers.put(questionNum, answer.trim().toUpperCase());
+        answers.put(questionId, letter.trim().toUpperCase());
     }
 
     /**
-     * Compares this response with the quiz's answer key and fills in the score
-     * fields.
+     * Compares each stored answer with the quiz's answer key (same questionId keys)
+     * and sets the percentage.
      */
     public void calculateScore(Quiz quiz) {
         Map<Integer, String> key = quiz.getAnswerKey();
-        totalQuestions = quiz.getQuestionCount();
-        correctCount = 0;
-
-        for (Map.Entry<Integer, String> entry : key.entrySet()) {
-            String given = answers.get(entry.getKey());
-            if (given != null && given.equalsIgnoreCase(entry.getValue())) {
-                correctCount++;
+        int correct = 0;
+        for (Map.Entry<Integer, String> entry : answers.entrySet()) {
+            String right = key.get(entry.getKey());
+            if (right != null && right.equalsIgnoreCase(entry.getValue())) {
+                correct++;
             }
         }
-        percentage = (totalQuestions == 0) ? 0 : (correctCount * 100) / totalQuestions;
-        if (submittedTime == 0) { // keep the original time when re-grading a loaded response
-            submittedTime = System.currentTimeMillis();
-        }
+        int total = quiz.getQuestionCount();
+        percentage = (total == 0) ? 0 : (correct * 100) / total;
     }
 
-    /**
-     * Saves this response to responses/response_<classCode>_<studentId>.txt:
-     * StudentId|101
-     * StudentName|Ajay
-     * Question|1|Answer|D
-     * SubmittedTime|1760000000000
-     */
-    public void saveToFile(String classCode) throws IOException {
+    public void markSubmitted() {
+        submitted = true;
+        submittedTime = System.currentTimeMillis();
+    }
+
+    public boolean isSubmitted() {
+        return submitted;
+    }
+
+    /** Saves this response to responses/response_<classCode>_<studentId>.txt */
+    public void saveToFile() throws IOException {
         Path file = responsePath(classCode, studentId);
         Files.createDirectories(file.getParent());
-
         List<String> lines = new ArrayList<>();
         lines.add("StudentId|" + studentId);
         lines.add("StudentName|" + clean(studentName));
@@ -87,19 +86,16 @@ public class StudentResponse {
     }
 
     /**
-     * Reads a saved response back. The score fields are not stored in the file,
-     * so call calculateScore(quiz) afterwards to get them.
+     * Reads a saved response back. Call calculateScore(quiz) afterwards to get the
+     * percentage.
      */
-    public static StudentResponse loadFromFile(String classCode, int quizId, int studentId)
-            throws IOException {
+    public static StudentResponse loadFromFile(String classCode, int studentId) throws IOException {
         Path file = responsePath(classCode, studentId);
         List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);
-
         int id = studentId;
         String name = "";
         long time = 0;
         Map<Integer, String> saved = new TreeMap<>();
-
         for (String line : lines) {
             if (line.trim().isEmpty()) {
                 continue;
@@ -126,8 +122,7 @@ public class StudentResponse {
                 throw new IOException("Bad line in response file: " + line);
             }
         }
-
-        StudentResponse r = new StudentResponse(id, name, quizId);
+        StudentResponse r = new StudentResponse(id, name, classCode);
         for (Map.Entry<Integer, String> e : saved.entrySet()) {
             r.submitAnswer(e.getKey(), e.getValue());
         }
@@ -142,16 +137,9 @@ public class StudentResponse {
         return Paths.get(RESPONSE_FOLDER, "response_" + classCode + "_" + studentId + ".txt");
     }
 
-    /**
-     * The file format uses '|' as a separator, so keep it (and line breaks) out of
-     * names.
-     */
+    /** '|' is the file separator, so keep it (and line breaks) out of names. */
     private static String clean(String text) {
         return (text == null) ? "" : text.replace('|', ' ').replace('\n', ' ').replace('\r', ' ');
-    }
-
-    public int getScore() {
-        return correctCount;
     }
 
     public int getPercentage() {
@@ -166,25 +154,16 @@ public class StudentResponse {
         return studentName;
     }
 
-    public int getQuizId() {
-        return quizId;
+    public String getClassCode() {
+        return classCode;
     }
 
     public Map<Integer, String> getAnswers() {
         return new HashMap<>(answers);
     }
 
-    public long getSubmittedTime() {
-        return submittedTime;
-    }
-
-    public int getTotalQuestions() {
-        return totalQuestions;
-    }
-
     @Override
     public String toString() {
-        return studentName + " (ID " + studentId + ") - Quiz " + quizId + ": "
-                + correctCount + "/" + totalQuestions + " (" + percentage + "%)";
+        return studentName + " (ID " + studentId + ") - Quiz " + classCode + ": " + percentage + "%";
     }
 }
