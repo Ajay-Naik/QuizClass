@@ -33,7 +33,7 @@ public class Student {
         }
         joinedQuizzes.put(code, quiz);
         if (!responses.containsKey(code)) { // joining again keeps the existing response
-            responses.put(code, new StudentResponse(studentId, studentName, code));
+            responses.put(code, loadSavedOrNew(code, quiz));
         }
         return quiz;
     }
@@ -86,6 +86,25 @@ public class Student {
             return -1;
         }
         return response.getPercentage();
+    }
+
+    /**
+     * If this student already submitted this quiz in an earlier run, a response
+     * file exists.
+     * Load it and mark it submitted so the quiz cannot be taken again.
+     */
+    private StudentResponse loadSavedOrNew(String code, Quiz quiz) {
+        try {
+            if (StudentResponse.savedResponseExists(code, studentId)) {
+                StudentResponse saved = StudentResponse.loadFromFile(code, studentId);
+                saved.calculateScore(quiz);
+                saved.markSubmitted();
+                return saved;
+            }
+        } catch (java.io.IOException e) {
+            System.out.println("Warning: could not read your saved response: " + e.getMessage());
+        }
+        return new StudentResponse(studentId, studentName, code);
     }
 
     private Question findQuestion(Quiz quiz, int questionId) {

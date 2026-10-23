@@ -18,18 +18,18 @@ public class StudentApp {
         teacher.addQuestionToQuiz(quiz, new MCQ(3, "Which keyword makes a class inherit?",
                 new String[] { "implements", "extends", "super", "this" }, "B"));
         System.out.println("[Teacher setup] Quiz created. Class code: " + quiz.getClassCode());
-        
+
         System.out.println();
-        
+
         quiz.startQuiz();
 
         Scanner in = new Scanner(System.in);
 
         String classCode = ask(in, "Enter class code: ");
-        
+
         if (manager.getQuizByCode(classCode) == null) {
-        System.out.println("Invalid class code");
-        return;
+            System.out.println("Invalid class code");
+            return;
         }
 
         int studentId = askInt(in, "Enter student ID: ");
@@ -38,11 +38,16 @@ public class StudentApp {
         Student student = new Student(studentId, name);
         Quiz joined = student.joinQuiz(classCode, manager);
         if (joined == null) {
-             System.out.println("Invalid class code");
-             return;
+            System.out.println("Invalid class code");
+            return;
         }
-       
+
         classCode = classCode.trim();
+        if (student.viewScore(classCode) != -1) {
+            System.out.println("You have already taken this quiz. Your score: "
+                    + student.viewScore(classCode) + "%");
+            return;
+        }
         System.out.println();
         System.out.println("Joined: " + joined.getTitle());
         System.out.println();
