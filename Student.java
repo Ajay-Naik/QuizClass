@@ -28,9 +28,7 @@ public class Student {
         if (quiz == null) {
             return null;
         }
-        if (!quiz.isOpen()) {
-            return null;
-        }
+       
         joinedQuizzes.put(code, quiz);
         if (!responses.containsKey(code)) { // joining again keeps the existing response
             responses.put(code, loadSavedOrNew(code, quiz));
@@ -114,10 +112,6 @@ public class Student {
             }
         }
         return null;
-    }
-
-    public int getStudentId() {
-        return studentId;
     }
 
     public String getStudentName() {
