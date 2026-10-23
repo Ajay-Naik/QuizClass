@@ -64,11 +64,21 @@ public class StudentResponse {
 
     public void markSubmitted() {
         submitted = true;
-        submittedTime = System.currentTimeMillis();
+        if (submittedTime == 0) {
+            submittedTime = System.currentTimeMillis();
+        }
     }
 
     public boolean isSubmitted() {
         return submitted;
+    }
+
+    /**
+     * True if this student already has a saved (submitted) response for this class
+     * code.
+     */
+    public static boolean savedResponseExists(String classCode, int studentId) {
+        return Files.exists(responsePath(classCode, studentId));
     }
 
     /** Saves this response to responses/response_<classCode>_<studentId>.txt */
