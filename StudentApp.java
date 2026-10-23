@@ -18,7 +18,10 @@ public class StudentApp {
         teacher.addQuestionToQuiz(quiz, new MCQ(3, "Which keyword makes a class inherit?",
                 new String[] { "implements", "extends", "super", "this" }, "B"));
         System.out.println("[Teacher setup] Quiz created. Class code: " + quiz.getClassCode());
+        
         System.out.println();
+        
+        quiz.startQuiz();
 
         Scanner in = new Scanner(System.in);
 
@@ -34,6 +37,10 @@ public class StudentApp {
 
         Student student = new Student(studentId, name);
         Quiz joined = student.joinQuiz(classCode, manager);
+        if (joined == null) {
+             System.out.println("Invalid class code");
+             return;
+        }
        
         classCode = classCode.trim();
         System.out.println();
