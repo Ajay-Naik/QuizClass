@@ -28,8 +28,9 @@ public class Student {
         if (quiz == null) {
             return null;
         }
-        // TODO: timer check - refuse to join if the quiz is not open (depends on Timer
-        // wiring).
+        if (!quiz.isOpen()) {
+            return null;
+        }
         joinedQuizzes.put(code, quiz);
         if (!responses.containsKey(code)) { // joining again keeps the existing response
             responses.put(code, new StudentResponse(studentId, studentName, code));
@@ -46,7 +47,10 @@ public class Student {
         if (response == null) {
             throw new IllegalStateException("You have not joined quiz " + classCode + ".");
         }
-        // TODO: timer check - reject answers if the quiz is closed (time up).
+        Quiz quiz = joinedQuizzes.get(classCode);
+        if (!quiz.isOpen()) {
+            throw new IllegalStateException("Quiz " + classCode + " is closed. Time is up.");
+        }
         Question question = findQuestion(joinedQuizzes.get(classCode), questionId);
         if (question == null) {
             throw new IllegalArgumentException("Question " + questionId + " does not exist.");
