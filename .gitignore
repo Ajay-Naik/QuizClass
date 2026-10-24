@@ -1,2 +1,4 @@
 *.class
+/quizzes
+/responses
 .gitignore

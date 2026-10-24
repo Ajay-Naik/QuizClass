@@ -11,7 +11,10 @@ import java.util.TreeMap;
 
 /**
  * One student's answers for one quiz (identified by class code).
- * Answers are single letters, keyed by questionId.
+ * Answers are single letters, keyed by questionId. The score is never stored in
+ * the file: it is recomputed from the answers and the quiz's answer key.
+ * Methods that touch the shared state are synchronized because the watcher
+ * thread (auto-submit) and the main thread can both reach the same response.
  */
 public class StudentResponse {
     private int studentId;
@@ -35,7 +38,7 @@ public class StudentResponse {
      * Stores (or overwrites) the answer for a questionId. Not allowed after
      * submission.
      */
-    public void submitAnswer(int questionId, String letter) {
+    public synchronized void submitAnswer(int questionId, String letter) {
         if (submitted) {
             throw new IllegalStateException("Already submitted.");
         }
@@ -49,27 +52,29 @@ public class StudentResponse {
      * Compares each stored answer with the quiz's answer key (same questionId keys)
      * and sets the percentage.
      */
-    public void calculateScore(Quiz quiz) {
+    public synchronized void calculateScore(Quiz quiz) {
         Map<Integer, String> key = quiz.getAnswerKey();
         int correct = 0;
+        // Unanswered questions have no entry in 'answers', so they simply count as wrong.
         for (Map.Entry<Integer, String> entry : answers.entrySet()) {
             String right = key.get(entry.getKey());
             if (right != null && right.equalsIgnoreCase(entry.getValue())) {
                 correct++;
             }
         }
-        int total = quiz.getQuestionCount();
+        int total = quiz.getQuestionCount(); // divide by ALL questions, not just the answered ones
         percentage = (total == 0) ? 0 : (correct * 100) / total;
     }
 
-    public void markSubmitted() {
+    /** Locks the response (no more answers) and stamps the submission time once. */
+    public synchronized void markSubmitted() {
         submitted = true;
         if (submittedTime == 0) {
             submittedTime = System.currentTimeMillis();
         }
     }
 
-    public boolean isSubmitted() {
+    public synchronized boolean isSubmitted() {
         return submitted;
     }
 
@@ -82,7 +87,7 @@ public class StudentResponse {
     }
 
     /** Saves this response to responses/response_<classCode>_<studentId>.txt */
-    public void saveToFile() throws IOException {
+    public synchronized void saveToFile() throws IOException {
         Path file = responsePath(classCode, studentId);
         Files.createDirectories(file.getParent());
         List<String> lines = new ArrayList<>();
@@ -91,7 +96,7 @@ public class StudentResponse {
         for (Map.Entry<Integer, String> e : new TreeMap<>(answers).entrySet()) {
             lines.add("Question|" + e.getKey() + "|Answer|" + e.getValue());
         }
-        lines.add("SubmittedTime|" + submittedTime);
+        lines.add("SubmittedAt|" + getSubmittedTimeText());
         Files.write(file, lines, StandardCharsets.UTF_8);
     }
 
@@ -110,20 +115,19 @@ public class StudentResponse {
             if (line.trim().isEmpty()) {
                 continue;
             }
-            String[] p = line.split("\\|");
+            String[] fields = line.split("\\|");
             try {
-                switch (p[0]) {
+                switch (fields[0]) {
                     case "StudentId":
-                        id = Integer.parseInt(p[1]);
+                        id = Integer.parseInt(fields[1]);
                         break;
                     case "StudentName":
-                        name = (p.length > 1) ? p[1] : "";
+                        name = (fields.length > 1) ? fields[1] : "";
                         break;
                     case "Question":
-                        saved.put(Integer.parseInt(p[1]), p[3]);
-                        break;
-                    case "SubmittedTime":
-                        time = Long.parseLong(p[1]);
+                        saved.put(Integer.parseInt(fields[1]), fields[3]);
+                        break;           
+                    case "SubmittedAt":
                         break;
                     default:
                         throw new IOException("Unknown line in response file: " + line);
@@ -152,7 +156,14 @@ public class StudentResponse {
         return (text == null) ? "" : text.replace('|', ' ').replace('\n', ' ').replace('\r', ' ');
     }
 
-    public int getPercentage() {
+    public String getSubmittedTimeText() {
+        return java.time.ZonedDateTime
+                .ofInstant(java.time.Instant.ofEpochMilli(submittedTime),
+                        java.time.ZoneId.systemDefault())
+                .format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm:ss z"));
+    }
+
+    public synchronized int getPercentage() {
         return percentage;
     }
 
@@ -168,12 +179,12 @@ public class StudentResponse {
         return classCode;
     }
 
-    public Map<Integer, String> getAnswers() {
+    public synchronized Map<Integer, String> getAnswers() {
         return new HashMap<>(answers);
     }
 
     @Override
-    public String toString() {
+    public synchronized String toString() {
         return studentName + " (ID " + studentId + ") - Quiz " + classCode + ": " + percentage + "%";
     }
 }

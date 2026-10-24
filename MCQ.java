@@ -1,9 +1,16 @@
 /**
  * MCQ (multiple choice question): options are labelled A, B, C, D... in order,
  * and the correct answer is stored as a letter (e.g. "D").
+ * This is the only concrete Question type; the rest of the system treats it
+ * through the Question abstraction.
  */
 public class MCQ extends Question {
 
+    /**
+     * @throws IllegalArgumentException if the text is blank, there are fewer than
+     *                                  2 options, or the correct answer is not one
+     *                                  of the option letters
+     */
     public MCQ(int questionId, String questionText,
             String[] options, String correctAnswer) {
         super(questionId, questionText, options, normalize(correctAnswer));
@@ -19,10 +26,7 @@ public class MCQ extends Question {
         }
     }
 
-    /**
-     * Checks that the answer is a valid option letter for this question
-     * (A/B/C/D...).
-     */
+    /** True if the answer is a single option letter that exists for this question (A/B/C/D...). */
     @Override
     public boolean validate(String answer) {
         return isValidOption(answer);
@@ -47,27 +51,17 @@ public class MCQ extends Question {
         }
     }
 
+    /** A valid answer is exactly one letter that maps to an existing option index. */
     private boolean isValidOption(String answer) {
-        String a = normalize(answer);
-        if (a.length() != 1) {
+        String letter = normalize(answer);
+        if (letter.length() != 1) {
             return false;
         }
-        int index = a.charAt(0) - 'A';
+        int index = letter.charAt(0) - 'A';
         return index >= 0 && index < options.length;
     }
 
-    public int getQuestionId() {
-        return questionId;
-    }
-
-    public String getQuestionText() {
-        return questionText;
-    }
-
-    public String[] getOptions() {
-        return options.clone();
-    }
-
+    /** Trims and upper-cases so "d", " D " and "D" are treated the same; null becomes "". */
     private static String normalize(String s) {
         return (s == null) ? "" : s.trim().toUpperCase();
     }
