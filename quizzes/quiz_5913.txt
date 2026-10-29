@@ -1,0 +1,6 @@
+QUIZ_METADATA
+QuizId|4|Title|Java OOP Basics|Duration|5|Code|5913
+QUESTIONS
+1|Which keyword creates a new object in Java?|D|class|this|static|new
+2|Which OOP concept lets a class reuse the fields and methods of another class?|B|Encapsulation|Inheritance|Polymorphism|Abstraction
+3|Which concept lets one method call behave differently for different object types?|A|Polymorphism|Encapsulation|Compilation|Serialization
